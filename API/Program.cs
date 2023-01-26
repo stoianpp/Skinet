@@ -1,26 +1,19 @@
+using API.Extensions;
 using API.Helpers;
-using Core.Interfaces;
+using API.Middleware;
 using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
-
 // Add services to the container.
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddAutoMapper(typeof(MappingProfiles));
-builder.Services.AddControllers();
 var str = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<StoreContext>(x =>
     x.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "API", Version = "v1" });
-});
+builder.Services.AddApplicationServices();
+builder.Services.AddSwaggerServices();
 
 var host = builder.Build();
 using var scope = host.Services.CreateScope();
@@ -39,16 +32,13 @@ catch (Exception ex)
 }
 
 // Configure the HTTP request pipeline.
-if (host.Environment.IsDevelopment())
-{
-    host.UseSwagger();
-    host.UseSwaggerUI();
-    host.UseDeveloperExceptionPage();
-}
+
+host.UseMiddleware<ExceptionMiddleware>();
+host.UseStatusCodePagesWithReExecute("/errors/{0}");
 
 host.UseHttpsRedirection();
 host.UseStaticFiles();
-
+host.AddSwaggerDocumentation();
 host.UseAuthorization();
 
 host.MapControllers();
